@@ -1,0 +1,4 @@
+color-matcher>=0.2.2
+numpy>=1.22.0
+torch>=1.13.0
+pillow>=9.0.0 
