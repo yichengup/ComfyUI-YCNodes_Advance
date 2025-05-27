@@ -1,5 +1,3 @@
-# layerstyle advance
-
 import os
 import torch
 import numpy as np
@@ -34,13 +32,24 @@ def image2mask(image:Image) -> torch.Tensor:
         return torch.tensor([pil2tensor(image)[0, :, :].tolist()])
 
 def mask2image(mask:torch.Tensor) -> Image:
-    masks = np.clip(255.0 * mask.cpu().numpy(), 0, 255).astype(np.uint8)
-    for m in masks:
-        _mask = Image.fromarray(m).convert("L")
-        _image = Image.new("RGBA", _mask.size, color='white')
-        _image = Image.composite(
-            _image, Image.new("RGBA", _mask.size, color='black'), _mask)
-    return _image
+    """将掩码Tensor转换为PIL图像"""
+    # 确保mask是二维的 (如果是多维的，取第一个通道)
+    if len(mask.shape) > 2:
+        mask_np = mask[0].cpu().numpy()
+    else:
+        mask_np = mask.cpu().numpy()
+    
+    # 归一化并转换为uint8
+    mask_np = np.clip(mask_np * 255.0, 0, 255).astype(np.uint8)
+    
+    # 创建PIL图像
+    mask_image = Image.fromarray(mask_np).convert("L")
+    
+    # 转换为带透明度的RGBA图像
+    rgba_image = Image.new("RGBA", mask_image.size, color=(255, 255, 255, 0))
+    rgba_image.putalpha(mask_image)
+    
+    return rgba_image
 
 def RGB2RGBA(image:Image, mask:Image) -> Image:
     return Image.composite(image.convert("RGBA"), Image.new("RGBA", image.size, (0, 0, 0, 0)), mask)
@@ -94,9 +103,19 @@ class LS_HumanPartsUltra:
         """
         import onnxruntime as ort
 
+        # 确保模型目录存在
+        os.makedirs(models_dir_path, exist_ok=True)
+
+        # 检查模型文件是否存在，如果不存在则提示下载
+        if not os.path.exists(model_path):
+            log(f"Model file not found at {model_path}. Please download from {model_url}", message_type='error')
+            log(f"You can download it manually and place it in {models_dir_path}", message_type='info')
+            raise FileNotFoundError(f"Model file not found: {model_path}")
+
         model = ort.InferenceSession(model_path, providers=['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider'])
         ret_images = []
         ret_masks = []
+        
         for img in image:
             orig_image = tensor2pil(img).convert('RGB')
 
@@ -106,39 +125,71 @@ class LS_HumanPartsUltra:
                                           torso_skin=torso_skin, left_arm=False, right_arm=False,
                                           left_leg=False, right_leg=False,
                                           left_foot=False, right_foot=False)
-            _mask = tensor2pil(human_parts_mask).convert('L')
-            brightness_image = ImageEnhance.Brightness(_mask)
-            _mask = brightness_image.enhance(factor=brightness)
-            _mask = image2mask(_mask)
+            
+            # 将结果转换为PIL图像以便进行亮度调整
+            _mask_pil = tensor2pil(human_parts_mask).convert('L')
+            brightness_image = ImageEnhance.Brightness(_mask_pil)
+            _mask_pil = brightness_image.enhance(factor=brightness)
+            
+            # 转回Tensor以便进一步处理
+            _mask = image2mask(_mask_pil)
             
             if process_detail:
                 # 简化后的处理逻辑，去除了VITMatte相关处理
                 _mask = self.process_mask_edges(_mask, refinement_edges)
                 # 应用黑白点调整
                 _mask = self.apply_black_white_points(_mask, black_point, white_point)
-            else:
-                _mask = mask2image(_mask)
-
-            ret_image = RGB2RGBA(orig_image, _mask.convert('L'))
+            
+            # 转换为PIL图像用于创建RGBA图像
+            _mask_pil = mask2image(_mask)
+            
+            # 创建RGBA图像
+            ret_image = RGB2RGBA(orig_image, _mask_pil)
             ret_images.append(pil2tensor(ret_image))
-            ret_masks.append(image2mask(_mask))
+            ret_masks.append(_mask)
+        
+        # 确保返回的是正确的Tensor格式
+        if len(ret_images) > 0:
+            ret_image_tensor = torch.cat(ret_images, dim=0)
+            ret_mask_tensor = torch.cat(ret_masks, dim=0)
+        else:
+            # 如果没有图像，返回空的tensor
+            ret_image_tensor = torch.zeros((0, 3, 64, 64))
+            ret_mask_tensor = torch.zeros((0, 1, 64, 64))
 
         log(f"{self.NODE_NAME} Processed {len(ret_images)} image(s).", message_type='finish')
-        return (torch.cat(ret_images, dim=0), torch.cat(ret_masks, dim=0),)
+        return (ret_image_tensor, ret_mask_tensor,)
     
     def process_mask_edges(self, mask, refinement_edges):
         """简化的边缘处理函数"""
+        # 获取原始形状以便后续恢复
+        original_shape = mask.shape
+        
+        # 转换为numpy数组，保留原始维度
         mask_np = mask.cpu().numpy()
-        # 应用简单的高斯模糊来平滑边缘
+        
+        # 应用简单的高斯模糊来平滑边缘 (只对最后两个维度应用滤波)
         from scipy.ndimage import gaussian_filter
-        mask_np = gaussian_filter(mask_np, sigma=refinement_edges/10)
-        return torch.from_numpy(mask_np)
+        # 对每个通道单独处理
+        for i in range(mask_np.shape[0]):
+            mask_np[i] = gaussian_filter(mask_np[i], sigma=refinement_edges/10)
+        
+        # 转回Tensor，保持原始形状
+        return torch.from_numpy(mask_np).to(mask.device)
     
     def apply_black_white_points(self, mask, black_point, white_point):
         """应用黑白点调整"""
+        # 获取原始形状以便后续恢复
+        original_shape = mask.shape
+        
+        # 转换为numpy数组
         mask_np = mask.cpu().numpy()
+        
+        # 应用黑白点调整
         mask_np = np.clip((mask_np - black_point) / (white_point - black_point), 0, 1)
-        return torch.from_numpy(mask_np)
+        
+        # 转回Tensor，保持原始形状
+        return torch.from_numpy(mask_np).to(mask.device)
 
     def get_mask(self, pil_image:Image, model, rotation:float, **kwargs) -> tuple:
         """
