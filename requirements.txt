@@ -1,3 +1,5 @@
 color-matcher
 numpy
 pillow
+onnxruntime
+scipy
