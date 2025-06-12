@@ -90,7 +90,8 @@ class YCFaceAlignToCanvas:
             },
         }
 
-    RETURN_TYPES = ("IMAGE",)
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("image", "uncovered_mask")
     FUNCTION = "align_to_canvas"
     CATEGORY = "YCNode/Face"
 
@@ -141,13 +142,32 @@ class YCFaceAlignToCanvas:
         # 创建新的画布
         result_image = Image.new('RGB', (canvas_width, canvas_height), (0, 0, 0))
         
+        # 创建遮罩画布（255为白色，表示未覆盖区域）
+        mask_image = Image.new('L', (canvas_width, canvas_height), 255)
+        
+        # 在遮罩上创建一个黑色区域（0），表示图像覆盖的区域
+        mask_draw = Image.new('L', (new_width, new_height), 0)
+        
         # 将调整后的图像粘贴到画布上
         result_image.paste(resized_image, (offset_x, offset_y))
+        
+        # 将黑色遮罩区域粘贴到遮罩画布上，表示图像覆盖的区域
+        mask_image.paste(mask_draw, (offset_x, offset_y))
         
         # 转换回tensor
         result_tensor = T.ToTensor()(result_image).permute(1, 2, 0).unsqueeze(0)
         
-        return (result_tensor,)
+        # 参考ImageIC.py中的遮罩处理方式
+        # 1. 将PIL遮罩转换为numpy数组并归一化
+        mask_np = np.array(mask_image).astype(np.float32) / 255.0
+        
+        # 2. 直接转换为torch tensor，保持[height, width]格式
+        mask_tensor = torch.from_numpy(mask_np)
+        
+        # 3. 添加批次维度，确保兼容ComfyUI的MASK格式
+        mask_tensor = mask_tensor.unsqueeze(0)
+        
+        return (result_tensor, mask_tensor)
 
 # 节点映射
 NODE_CLASS_MAPPINGS = {
