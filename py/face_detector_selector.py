@@ -33,7 +33,7 @@ class FaceDetectorSelector:
     RETURN_TYPES = ("IMAGE", "INT", "STRING")
     RETURN_NAMES = ("image", "face_count", "face_message")
     FUNCTION = "select_by_face"
-    CATEGORY = "YCNode/Image"
+    CATEGORY = "YCNode/Face"
 
     def __init__(self):
         self.face_analyzer = None
