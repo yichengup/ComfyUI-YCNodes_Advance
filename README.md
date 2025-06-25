@@ -1,6 +1,6 @@
 # ComfyUI-YCNodes_Advance 
 
-本文档提供ComfyUI-YCNodes_Advance节点包中各个节点所需模型的下载链接和安装方法。
+本文档提供ComfyUI-YCNodes_Advance节点包中各个节点所需模型（一般都会自动下载）的下载链接和安装方法。
 
 ## 目录
 
