@@ -87,6 +87,9 @@ class YCFaceAlignToCanvas:
                 "padding_percent": ("FLOAT", { "default": 0.0, "min": 0.0, "max": 2.0, "step": 0.05 }),
                 "keep_aspect_ratio": ("BOOLEAN", { "default": True }),
                 "face_index": ("INT", { "default": 0, "min": 0, "max": 100, "step": 1 }),
+                "mode": (["contain", "cover", "stretch"], {"default": "contain"}),
+                "contain_mode": (["auto", "by_width", "by_height"], {"default": "auto"}),
+                "detect_face": ("BOOLEAN", {"default": True}),
             },
         }
 
@@ -97,76 +100,101 @@ class YCFaceAlignToCanvas:
 
     def align_to_canvas(self, analysis_models, image, canvas_width, canvas_height, 
                         target_face_x, target_face_y, target_face_width, target_face_height,
-                        padding, padding_percent, keep_aspect_ratio, face_index=0):
-        # 处理输入图像
+                        padding, padding_percent, keep_aspect_ratio, face_index=0, mode="contain", contain_mode="auto", detect_face=True):
         input_image = image[0]  # 取第一帧
         pil_image = T.ToPILImage()(input_image.permute(2, 0, 1)).convert('RGB')
-        
-        # 检测脸部
-        img, x, y, w, h = analysis_models.get_bbox(pil_image, padding, padding_percent)
-        
-        if not img:
-            raise Exception('No face detected in image.')
-        
-        # 确保face_index在有效范围内
+        img_w, img_h = pil_image.width, pil_image.height
+        canvas_w, canvas_h = canvas_width, canvas_height
+
+        # 是否检测人脸
+        do_face_detect = detect_face
+        faces_found = False
+        if do_face_detect:
+            img, x, y, w, h = analysis_models.get_bbox(pil_image, padding, padding_percent)
+            if img and len(img) > 0:
+                faces_found = True
+        else:
+            img, x, y, w, h = [], [], [], [], []
+
+        if not faces_found:
+            # 没有人脸时，按mode处理
+            if mode == "contain":
+                if contain_mode == "auto":
+                    scale = min(canvas_w / img_w, canvas_h / img_h)
+                elif contain_mode == "by_width":
+                    scale = canvas_w / img_w
+                elif contain_mode == "by_height":
+                    scale = canvas_h / img_h
+                else:
+                    scale = min(canvas_w / img_w, canvas_h / img_h)
+                new_w = int(img_w * scale)
+                new_h = int(img_h * scale)
+                resized_image = pil_image.resize((new_w, new_h), Image.LANCZOS)
+                offset_x = (canvas_w - new_w) // 2
+                offset_y = (canvas_h - new_h) // 2
+            elif mode == "cover":
+                scale = max(canvas_w / img_w, canvas_h / img_h)
+                new_w = int(img_w * scale)
+                new_h = int(img_h * scale)
+                resized_image = pil_image.resize((new_w, new_h), Image.LANCZOS)
+                offset_x = (canvas_w - new_w) // 2
+                offset_y = (canvas_h - new_h) // 2
+            elif mode == "stretch":
+                new_w = canvas_w
+                new_h = canvas_h
+                resized_image = pil_image.resize((new_w, new_h), Image.LANCZOS)
+                offset_x = 0
+                offset_y = 0
+            else:
+                # 默认contain auto
+                scale = min(canvas_w / img_w, canvas_h / img_h)
+                new_w = int(img_w * scale)
+                new_h = int(img_h * scale)
+                resized_image = pil_image.resize((new_w, new_h), Image.LANCZOS)
+                offset_x = (canvas_w - new_w) // 2
+                offset_y = (canvas_h - new_h) // 2
+            # 创建画布
+            result_image = Image.new('RGB', (canvas_w, canvas_h), (0, 0, 0))
+            mask_image = Image.new('L', (canvas_w, canvas_h), 255)
+            # 粘贴图片
+            result_image.paste(resized_image, (offset_x, offset_y))
+            # 粘贴遮罩
+            mask_draw = Image.new('L', (new_w, new_h), 0)
+            mask_image.paste(mask_draw, (offset_x, offset_y))
+            # 转tensor
+            result_tensor = T.ToTensor()(result_image).permute(1, 2, 0).unsqueeze(0)
+            mask_np = np.array(mask_image).astype(np.float32) / 255.0
+            mask_tensor = torch.from_numpy(mask_np)
+            mask_tensor = mask_tensor.unsqueeze(0)
+            return (result_tensor, mask_tensor)
+
+        # 有人脸时，按原逻辑
         if face_index >= len(img):
             face_index = 0
-        
-        # 获取检测到的脸部坐标和尺寸
         face_x = x[face_index]
         face_y = y[face_index]
         face_width = w[face_index]
         face_height = h[face_index]
-        
-        # 计算缩放比例
         scale_x = target_face_width / face_width
         scale_y = target_face_height / face_height
-        
-        # 如果需要保持宽高比，选择较小的缩放比例
         if keep_aspect_ratio:
             scale = min(scale_x, scale_y)
             scale_x = scale
             scale_y = scale
-        
-        # 计算调整后的图像尺寸
         new_width = int(pil_image.width * scale_x)
         new_height = int(pil_image.height * scale_y)
-        
-        # 计算偏移量，使脸部对齐到目标位置
         offset_x = target_face_x - int(face_x * scale_x)
         offset_y = target_face_y - int(face_y * scale_y)
-        
-        # 调整图像大小
         resized_image = pil_image.resize((new_width, new_height), Image.LANCZOS)
-        
-        # 创建新的画布
-        result_image = Image.new('RGB', (canvas_width, canvas_height), (0, 0, 0))
-        
-        # 创建遮罩画布（255为白色，表示未覆盖区域）
-        mask_image = Image.new('L', (canvas_width, canvas_height), 255)
-        
-        # 在遮罩上创建一个黑色区域（0），表示图像覆盖的区域
+        result_image = Image.new('RGB', (canvas_w, canvas_h), (0, 0, 0))
+        mask_image = Image.new('L', (canvas_w, canvas_h), 255)
         mask_draw = Image.new('L', (new_width, new_height), 0)
-        
-        # 将调整后的图像粘贴到画布上
         result_image.paste(resized_image, (offset_x, offset_y))
-        
-        # 将黑色遮罩区域粘贴到遮罩画布上，表示图像覆盖的区域
         mask_image.paste(mask_draw, (offset_x, offset_y))
-        
-        # 转换回tensor
         result_tensor = T.ToTensor()(result_image).permute(1, 2, 0).unsqueeze(0)
-        
-        # 参考ImageIC.py中的遮罩处理方式
-        # 1. 将PIL遮罩转换为numpy数组并归一化
         mask_np = np.array(mask_image).astype(np.float32) / 255.0
-        
-        # 2. 直接转换为torch tensor，保持[height, width]格式
         mask_tensor = torch.from_numpy(mask_np)
-        
-        # 3. 添加批次维度，确保兼容ComfyUI的MASK格式
         mask_tensor = mask_tensor.unsqueeze(0)
-        
         return (result_tensor, mask_tensor)
 
 # 节点映射
