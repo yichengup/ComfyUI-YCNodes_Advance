@@ -16,7 +16,7 @@ YCFaceAnalysisModels节点使用InsightFace库进行人脸检测和分析。
 
 InsightFace模型会在首次运行时自动下载，但您也可以手动下载并放置到正确位置：
 
-1. 创建目录：`ComfyUI/models/insightface/`
+1. 创建目录：`ComfyUI/models/insightface/models`
 2. 下载对应模型文件：
    - buffalo_l: [下载链接](https://github.com/deepinsight/insightface/tree/master/model_zoo) 一般只用这个模型
    - buffalo_m: [下载链接](https://github.com/deepinsight/insightface/tree/master/model_zoo)
