@@ -157,11 +157,11 @@ class YCFaceAlignToCanvas:
                 offset_y = (canvas_h - new_h) // 2
             # 创建画布
             result_image = Image.new('RGB', (canvas_w, canvas_h), (0, 0, 0))
-            mask_image = Image.new('L', (canvas_w, canvas_h), 255)
+            mask_image = Image.new('L', (canvas_w, canvas_h), 0)  # 反相：未覆盖区域为黑色
             # 粘贴图片
             result_image.paste(resized_image, (offset_x, offset_y))
             # 粘贴遮罩
-            mask_draw = Image.new('L', (new_w, new_h), 0)
+            mask_draw = Image.new('L', (new_w, new_h), 255)  # 反相：图片区域为白色
             mask_image.paste(mask_draw, (offset_x, offset_y))
             # 转tensor
             result_tensor = T.ToTensor()(result_image).permute(1, 2, 0).unsqueeze(0)
@@ -189,8 +189,8 @@ class YCFaceAlignToCanvas:
         offset_y = target_face_y - int(face_y * scale_y)
         resized_image = pil_image.resize((new_width, new_height), Image.LANCZOS)
         result_image = Image.new('RGB', (canvas_w, canvas_h), (0, 0, 0))
-        mask_image = Image.new('L', (canvas_w, canvas_h), 255)
-        mask_draw = Image.new('L', (new_width, new_height), 0)
+        mask_image = Image.new('L', (canvas_w, canvas_h), 0)  # 反相：未覆盖区域为黑色
+        mask_draw = Image.new('L', (new_width, new_height), 255)  # 反相：图片区域为白色
         result_image.paste(resized_image, (offset_x, offset_y))
         mask_image.paste(mask_draw, (offset_x, offset_y))
         result_tensor = T.ToTensor()(result_image).permute(1, 2, 0).unsqueeze(0)
@@ -291,11 +291,11 @@ class YCFaceAlignToCanvasV2:
                 offset_y = (canvas_h - new_h) // 2
             # 创建画布
             result_image = Image.new('RGB', (canvas_w, canvas_h), (0, 0, 0))
-            mask_image = Image.new('L', (canvas_w, canvas_h), 255)
+            mask_image = Image.new('L', (canvas_w, canvas_h), 0)  # 反相：未覆盖区域为黑色
             # 粘贴图片
             result_image.paste(resized_image, (offset_x, offset_y))
             # 粘贴遮罩
-            mask_draw = Image.new('L', (new_w, new_h), 0)
+            mask_draw = Image.new('L', (new_w, new_h), 255)  # 反相：图片区域为白色
             mask_image.paste(mask_draw, (offset_x, offset_y))
             # 转tensor
             result_tensor = T.ToTensor()(result_image).permute(1, 2, 0).unsqueeze(0)
@@ -359,8 +359,8 @@ class YCFaceAlignToCanvasV2:
         # 调整图像和创建遮罩
         resized_image = pil_image.resize((new_width, new_height), Image.LANCZOS)
         result_image = Image.new('RGB', (canvas_w, canvas_h), (0, 0, 0))
-        mask_image = Image.new('L', (canvas_w, canvas_h), 255)
-        mask_draw = Image.new('L', (new_width, new_height), 0)
+        mask_image = Image.new('L', (canvas_w, canvas_h), 0)  # 反相：未覆盖区域为黑色
+        mask_draw = Image.new('L', (new_width, new_height), 255)  # 反相：图片区域为白色
         
         result_image.paste(resized_image, (offset_x, offset_y))
         mask_image.paste(mask_draw, (offset_x, offset_y))
@@ -373,16 +373,193 @@ class YCFaceAlignToCanvasV2:
         
         return (result_tensor, mask_tensor)
 
+class YCFaceAlignToReference:
+    """
+    将目标图片的人脸对齐到参考图片的人脸位置和大小
+    """
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "analysis_models": ("ANALYSIS_MODELS", ),
+                "reference_image": ("IMAGE", ),
+                "target_image": ("IMAGE", ),
+                "scale_mode": (["keep_aspect_ratio", "match_both"], {"default": "keep_aspect_ratio"}),
+                "reference_face_index": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
+                "target_face_index": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
+                "padding": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
+                "horizontal_offset": ("INT", {"default": 0, "min": -1000, "max": 1000, "step": 1}),
+                "vertical_offset": ("INT", {"default": 0, "min": -1000, "max": 1000, "step": 1}),
+                "background_color": ("STRING", {"default": "#000000"}),
+            },
+        }
+    
+    @staticmethod
+    def hex_to_rgb(hex_color):
+        """将十六进制颜色转换为RGB元组"""
+        hex_color = hex_color.lstrip('#')
+        if len(hex_color) == 6:
+            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        elif len(hex_color) == 3:
+            return tuple(int(hex_color[i]*2, 16) for i in range(3))
+        else:
+            return (0, 0, 0)  # 默认黑色
+    
+    RETURN_TYPES = ("IMAGE", "MASK")
+    RETURN_NAMES = ("aligned_image", "mask")
+    FUNCTION = "align_to_reference"
+    CATEGORY = "YCNode/Face"
+    
+    def align_to_reference(self, analysis_models, reference_image, target_image, 
+                          scale_mode, reference_face_index, target_face_index,
+                          padding, horizontal_offset, vertical_offset, background_color):
+        """
+        将目标图片对齐到参考图片
+        """
+        # 解析背景颜色
+        bg_color = self.hex_to_rgb(background_color)
+        
+        # 内部固定的padding_percent值
+        padding_percent = 0.05
+        
+        # 转换图片格式
+        ref_input = reference_image[0]
+        target_input = target_image[0]
+        ref_pil = T.ToPILImage()(ref_input.permute(2, 0, 1)).convert('RGB')
+        target_pil = T.ToPILImage()(target_input.permute(2, 0, 1)).convert('RGB')
+        
+        # 获取参考图画布尺寸
+        canvas_w, canvas_h = ref_pil.width, ref_pil.height
+        
+        # 检测参考图人脸
+        ref_imgs, ref_x, ref_y, ref_w, ref_h = analysis_models.get_bbox(
+            ref_pil, padding, padding_percent
+        )
+        
+        # 检测目标图人脸
+        target_imgs, target_x, target_y, target_w, target_h = analysis_models.get_bbox(
+            target_pil, padding, padding_percent
+        )
+        
+        # 检查是否检测到人脸
+        ref_face_found = ref_imgs and len(ref_imgs) > 0
+        target_face_found = target_imgs and len(target_imgs) > 0
+        
+        # 降级方案：如果任一图片未检测到人脸，执行全图对齐
+        if not ref_face_found or not target_face_found:
+            # 全图对齐：将目标图缩放到参考图大小
+            if scale_mode == "keep_aspect_ratio":
+                # 保持宽高比，适应画布
+                scale = min(canvas_w / target_pil.width, canvas_h / target_pil.height)
+                new_w = int(target_pil.width * scale)
+                new_h = int(target_pil.height * scale)
+            else:
+                # 强制匹配画布尺寸
+                new_w = canvas_w
+                new_h = canvas_h
+            
+            resized_image = target_pil.resize((new_w, new_h), Image.LANCZOS)
+            
+            # 居中放置
+            offset_x = (canvas_w - new_w) // 2
+            offset_y = (canvas_h - new_h) // 2
+            
+            # 创建画布和遮罩
+            result_image = Image.new('RGB', (canvas_w, canvas_h), bg_color)
+            mask_image = Image.new('L', (canvas_w, canvas_h), 0)  # 反相：未覆盖区域为黑色
+            
+            result_image.paste(resized_image, (offset_x, offset_y))
+            mask_draw = Image.new('L', (new_w, new_h), 255)  # 反相：图片区域为白色
+            mask_image.paste(mask_draw, (offset_x, offset_y))
+            
+            # 转换为tensor
+            result_tensor = T.ToTensor()(result_image).permute(1, 2, 0).unsqueeze(0)
+            mask_np = np.array(mask_image).astype(np.float32) / 255.0
+            mask_tensor = torch.from_numpy(mask_np).unsqueeze(0)
+            
+            return (result_tensor, mask_tensor)
+        
+        # 获取指定索引的人脸
+        if reference_face_index >= len(ref_imgs):
+            reference_face_index = 0
+        if target_face_index >= len(target_imgs):
+            target_face_index = 0
+        
+        ref_face_x = ref_x[reference_face_index]
+        ref_face_y = ref_y[reference_face_index]
+        ref_face_w = ref_w[reference_face_index]
+        ref_face_h = ref_h[reference_face_index]
+        
+        target_face_x = target_x[target_face_index]
+        target_face_y = target_y[target_face_index]
+        target_face_w = target_w[target_face_index]
+        target_face_h = target_h[target_face_index]
+        
+        # 计算缩放比例
+        scale_x = ref_face_w / target_face_w
+        scale_y = ref_face_h / target_face_h
+        
+        if scale_mode == "keep_aspect_ratio":
+            # 保持宽高比，使用较小的缩放比例确保人脸完全显示
+            scale = min(scale_x, scale_y)
+            scale_x = scale
+            scale_y = scale
+        
+        # 缩放目标图片
+        new_width = int(target_pil.width * scale_x)
+        new_height = int(target_pil.height * scale_y)
+        resized_image = target_pil.resize((new_width, new_height), Image.LANCZOS)
+        
+        # 计算偏移量，使人脸位置对齐
+        offset_x = ref_face_x - int(target_face_x * scale_x)
+        offset_y = ref_face_y - int(target_face_y * scale_y)
+        
+        # 应用水平和垂直微调偏移
+        offset_x += horizontal_offset
+        offset_y += vertical_offset
+        
+        # 创建画布
+        result_image = Image.new('RGB', (canvas_w, canvas_h), bg_color)
+        mask_image = Image.new('L', (canvas_w, canvas_h), 0)  # 反相：未覆盖区域为黑色
+        
+        # 计算实际粘贴区域（处理裁剪）
+        # 源图片的裁剪区域
+        src_left = max(0, -offset_x)
+        src_top = max(0, -offset_y)
+        src_right = min(new_width, canvas_w - offset_x)
+        src_bottom = min(new_height, canvas_h - offset_y)
+        
+        # 目标画布的粘贴位置
+        dst_left = max(0, offset_x)
+        dst_top = max(0, offset_y)
+        
+        # 裁剪并粘贴
+        if src_right > src_left and src_bottom > src_top:
+            cropped_image = resized_image.crop((src_left, src_top, src_right, src_bottom))
+            cropped_mask = Image.new('L', (src_right - src_left, src_bottom - src_top), 255)  # 反相：图片区域为白色
+            
+            result_image.paste(cropped_image, (dst_left, dst_top))
+            mask_image.paste(cropped_mask, (dst_left, dst_top))
+        
+        # 转换为tensor
+        result_tensor = T.ToTensor()(result_image).permute(1, 2, 0).unsqueeze(0)
+        mask_np = np.array(mask_image).astype(np.float32) / 255.0
+        mask_tensor = torch.from_numpy(mask_np).unsqueeze(0)
+        
+        return (result_tensor, mask_tensor)
+
 # 节点映射
 NODE_CLASS_MAPPINGS = {
     "YCFaceAnalysisModels": YCFaceAnalysisModels,
     "YCFaceAlignToCanvas": YCFaceAlignToCanvas,
-    "YCFaceAlignToCanvasV2": YCFaceAlignToCanvasV2
+    "YCFaceAlignToCanvasV2": YCFaceAlignToCanvasV2,
+    "YCFaceAlignToReference": YCFaceAlignToReference
 }
 
 # 显示名称映射
 NODE_DISPLAY_NAME_MAPPINGS = {
     "YCFaceAnalysisModels": "YC Face Analysis Models",
     "YCFaceAlignToCanvas": "YC Face Align To Canvas",
-    "YCFaceAlignToCanvasV2": "YC Face Align To Canvas V2"
+    "YCFaceAlignToCanvasV2": "YC Face Align To Canvas V2",
+    "YCFaceAlignToReference": "YC Face Align To Reference"
 }
