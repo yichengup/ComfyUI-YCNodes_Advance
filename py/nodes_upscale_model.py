@@ -27,7 +27,7 @@ class UpscaleModelLoaderYC:
     
     RETURN_TYPES = ("UPSCALE_MODEL",)
     FUNCTION = "load_model"
-    CATEGORY = "loaders"
+    CATEGORY = "YCNode/Image"
 
     def load_model(self, model_name):
         model_path = folder_paths.get_full_path_or_raise("upscale_models", model_name)
@@ -64,7 +64,7 @@ class ImageUpscaleWithModelYC:
     
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "upscale"
-    CATEGORY = "image/upscaling"
+    CATEGORY = "YCNode/Image"
     OUTPUT_NODE = False
 
     def upscale(self, upscale_model, image, tile_size=0):
@@ -266,4 +266,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "UpscaleModelLoader_Optimized": "Load Upscale Model YC",
     "ImageUpscaleWithModel_Optimized": "Upscale Image YC",
 }
+
 
