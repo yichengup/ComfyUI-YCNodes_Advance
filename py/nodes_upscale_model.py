@@ -258,7 +258,7 @@ class ImageUpscaleWithModelYC:
 
 
 NODE_CLASS_MAPPINGS = {
-    "UpscaleModelLoader_Optimized": UpscaleModelYC,
+    "UpscaleModelLoader_Optimized": UpscaleModelLoaderYC,
     "ImageUpscaleWithModel_Optimized": ImageUpscaleWithModelYC,
 }
 
@@ -266,5 +266,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "UpscaleModelLoader_Optimized": "Load Upscale Model YC",
     "ImageUpscaleWithModel_Optimized": "Upscale Image YC",
 }
+
 
 
