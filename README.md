@@ -6,6 +6,7 @@
 
 1. [人脸检测模型 (YCFaceAnalysisModels)](#人脸检测模型-ycfaceanalysismodels)
 2. [人体分割模型 (HumanPartsUltra)](#人体分割模型-humanpartsultra)
+3. [BBox画布 (Canvas BBoX)](#BBox画布-CanvasBBoX)
 
 
 ## 人脸检测模型 (YCFaceAnalysisModels)
@@ -43,6 +44,8 @@ HumanPartsUltra节点使用DeepLabV3+模型进行人体部位分割。
 ```bash
 pip install onnxruntime scipy
 ```
+## BBox画布 (CanvasBBoX)
+<img width="508" height="561" alt="image" src="https://github.com/user-attachments/assets/df74dfb4-5616-4216-8818-aa792bf8e6af" />
 
 
 ## 常见问题
