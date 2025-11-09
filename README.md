@@ -18,7 +18,7 @@ InsightFace模型会在首次运行时自动下载，但您也可以手动下载
 
 1. 创建目录：`ComfyUI/models/insightface/models`
 2. 下载对应模型文件：
-   - buffalo_l: [下载链接](https://github.com/deepinsight/insightface/tree/master/model_zoo) 一般只用这个模型
+   - buffalo_l: [下载链接](https://huggingface.co/yichengup/facial-detection-collection/tree/main/insightface) 一般只用这个模型
    - buffalo_m: [下载链接](https://github.com/deepinsight/insightface/tree/master/model_zoo)
    - buffalo_s: [下载链接](https://github.com/deepinsight/insightface/tree/master/model_zoo)
 
