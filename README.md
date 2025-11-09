@@ -45,7 +45,7 @@ HumanPartsUltra节点使用DeepLabV3+模型进行人体部位分割。
 pip install onnxruntime scipy
 ```
 ## BBox画布 (CanvasBBoX)
-<img width="508" height="561" alt="image" src="https://github.com/user-attachments/assets/df74dfb4-5616-4216-8818-aa792bf8e6af" />
+<img width="655" height="660" alt="image" src="https://github.com/user-attachments/assets/57c4c591-e691-421e-930c-45cc6f9efac9" />
 
 我创建这个适合BBox的绘制的节点，基础的代码来自 https://github.com/Smirnov75/ComfyUI-mxToolkit
 
