@@ -46,10 +46,12 @@ class ycCanvasBBox:
 
         return (canvas_width, canvas_height, bbox_strings[0], bbox_strings[1], bbox_strings[2], bbox_strings[3], bbox_strings[4], bbox_strings[5], bbox_strings[6], bbox_strings[7], bbox_strings[8], bbox_strings[9])
 
+# author.yichengup.CanvasBBox 2025.11.10 
 
 NODE_CLASS_MAPPINGS = {
     "ycCanvasBBox": ycCanvasBBox,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ycCanvasBBox": "Canvas BBox"
+
 }
