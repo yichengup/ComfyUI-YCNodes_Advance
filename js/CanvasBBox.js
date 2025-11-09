@@ -1,4 +1,4 @@
-// ComfyUI.mxToolkit.CanvasBBox v.1.0.0 - 2025
+// author.yichengup.CanvasBBox 2025.11.10 
 import { app } from "../../scripts/app.js";
 
 class ycCanvasBBOX
@@ -54,11 +54,11 @@ class ycCanvasBBOX
             // 定义按钮区域
             this.properties.buttons = [
                 {
-                    text: "设置画布",
+                    text: "Set Size",
                     x: 15,
                     y: 15,
-                    width: 60,
-                    height: 25,
+                    width: 66,
+                    height: 20,
                     action: () => {
                         const canvasWidth = this.widgets[0].value || 512;
                         const canvasHeight = this.widgets[1].value || 512;
@@ -101,11 +101,11 @@ class ycCanvasBBOX
                     }
                 },
                 {
-                    text: "添加BBox",
+                    text: "Add BBox",
                     x: 15,
-                    y: 50,
-                    width: 60,
-                    height: 25,
+                    y: 45,
+                    width: 66,
+                    height: 20,
                     action: () => {
                         const canvasWidth = this.widgets[0].value || 512;
                         const canvasHeight = this.widgets[1].value || 512;
@@ -124,11 +124,11 @@ class ycCanvasBBOX
                     }
                 },
                 {
-                    text: "删除BBox",
+                    text: "Del BBox",
                     x: 15,
-                    y: 85,
-                    width: 60,
-                    height: 25,
+                    y: 75,
+                    width: 66,
+                    height: 20,
                     action: () => {
                         if (this.properties.selectedBBox >= 0 && this.properties.selectedBBox < this.properties.bboxes.length) {
                             this.properties.bboxes.splice(this.properties.selectedBBox, 1);
@@ -603,7 +603,7 @@ class ycCanvasBBOX
         this.node.computeSize = () => [300, 300];
     }
 }
-
+// author.yichengup.CanvasBBox 2025.11.10 
 app.registerExtension({
     name: "ycCanvasBBox",
     async beforeRegisterNodeDef(nodeType, nodeData, _app) {
@@ -616,3 +616,5 @@ app.registerExtension({
         }
     }
 });
+
+// author.yichengup.CanvasBBox 2025.11.10 
