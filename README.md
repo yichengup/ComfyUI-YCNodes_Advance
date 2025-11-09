@@ -46,8 +46,7 @@ pip install onnxruntime scipy
 ```
 ## BBox画布 (CanvasBBoX)
 <img width="508" height="561" alt="image" src="https://github.com/user-attachments/assets/df74dfb4-5616-4216-8818-aa792bf8e6af" />
-
-
+我创建该节点是在 [ComfyUI-mxToolkit](https://github.com/Smirnov75/ComfyUI-mxToolkit) 中 Slider 2D 节点的基础上，进行改造适合BBox的绘制
 ## 常见问题
 
 ### 模型无法下载或加载
