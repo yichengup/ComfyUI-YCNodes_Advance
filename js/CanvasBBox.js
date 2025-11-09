@@ -29,8 +29,8 @@ class ycCanvasBBOX
             this.node.widgets[i].type = "hidden"; 
         }
 
-        // 节点初始化
-        this.node.onAdded = function () {
+        // 初始化按钮函数
+        this.node.initButtons = function() {
             // 设置输出名称
             this.outputs[0].name = this.outputs[0].localized_name = "width";
             this.outputs[1].name = this.outputs[1].localized_name = "height";
@@ -144,6 +144,12 @@ class ycCanvasBBOX
             ];
         };
 
+        // 节点初始化
+        this.node.onAdded = function () {
+            // 调用初始化按钮函数
+            this.initButtons();
+        };
+
         // 节点配置
         this.node.onConfigure = function () {
             // 从字符串中解析bbox数据 - 格式为 "x1,y1,w1,h1;x2,y2,w2,h2;..."
@@ -209,10 +215,8 @@ class ycCanvasBBOX
                 }
             }
 
-            // 确保按钮已初始化
-            if (!this.properties.buttons) {
-                this.onAdded();
-            }
+            // 确保按钮已初始化 - 无论是否存在都重新初始化，确保刷新后按钮正常工作
+            this.initButtons();
         }
 
         // 绘制前景
