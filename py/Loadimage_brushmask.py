@@ -11,7 +11,7 @@ class ycimagebrushmask:
         return {
             "required": {
                 "brush_data": ("STRING", {"default": "", "multiline": True}),
-                "brush_size": ("INT", {"default": 20, "min": 1, "max": 200, "step": 1}),
+                "brush_size": ("INT", {"default": 80, "min": 1, "max": 200, "step": 1}),
                 "image_base64": ("STRING", {"default": "", "multiline": True}),
             },
         }
@@ -87,10 +87,11 @@ class ycimagebrushmask:
                     if not stroke.strip():
                         continue
                     
-                    # 解析模式、size和opacity信息
+                    # 解析模式、size、opacity和颜色信息
                     mode = 'brush'  # 默认模式
                     stroke_size = brush_size  # 默认使用全局brush_size
                     stroke_opacity = 1.0  # 默认透明度（后端不使用，但解析出来保持兼容）
+                    stroke_color = None  # 颜色信息（后端不使用，但解析出来保持兼容）
                     points_str = stroke
                     
                     if ':' in stroke:
@@ -100,17 +101,54 @@ class ycimagebrushmask:
                             if parts[0] in ('brush', 'erase'):
                                 mode = parts[0]
                                 
-                                # 检查是否有size和opacity（新格式）
+                                # 检查格式：支持 mode:size:opacity:r,g,b:points 或 mode:size:opacity:points
                                 if len(parts) >= 4:
-                                    # 新格式：mode:size:opacity:points
-                                    try:
-                                        stroke_size = int(float(parts[1]))
-                                        stroke_opacity = float(parts[2])
-                                        # 合并剩余部分作为points（处理points中可能包含冒号的情况）
-                                        points_str = ':'.join(parts[3:])
-                                    except (ValueError, IndexError):
-                                        # 解析失败，使用默认值
-                                        points_str = ':'.join(parts[1:])
+                                    # 尝试解析新格式（带颜色）：mode:size:opacity:r,g,b:points
+                                    part3 = parts[3]
+                                    if part3 and ',' in part3:
+                                        # 可能是颜色格式 r,g,b
+                                        try:
+                                            color_parts = part3.split(',')
+                                            if len(color_parts) == 3:
+                                                r = int(float(color_parts[0]))
+                                                g = int(float(color_parts[1]))
+                                                b = int(float(color_parts[2]))
+                                                # 验证是否是有效的RGB值
+                                                if 0 <= r <= 255 and 0 <= g <= 255 and 0 <= b <= 255:
+                                                    # 这是颜色，格式为 mode:size:opacity:r,g,b:points
+                                                    stroke_size = int(float(parts[1]))
+                                                    stroke_opacity = float(parts[2])
+                                                    stroke_color = f"{r},{g},{b}"
+                                                    # 合并剩余部分作为points（处理points中可能包含冒号的情况）
+                                                    points_str = ':'.join(parts[4:])
+                                                else:
+                                                    # 不是有效的颜色，可能是旧格式 mode:size:opacity:points
+                                                    stroke_size = int(float(parts[1]))
+                                                    stroke_opacity = float(parts[2])
+                                                    points_str = ':'.join(parts[3:])
+                                            else:
+                                                # 不是颜色格式，可能是旧格式 mode:size:opacity:points
+                                                stroke_size = int(float(parts[1]))
+                                                stroke_opacity = float(parts[2])
+                                                points_str = ':'.join(parts[3:])
+                                        except (ValueError, IndexError):
+                                            # 解析失败，使用旧格式
+                                            try:
+                                                stroke_size = int(float(parts[1]))
+                                                stroke_opacity = float(parts[2])
+                                                points_str = ':'.join(parts[3:])
+                                            except (ValueError, IndexError):
+                                                points_str = ':'.join(parts[1:])
+                                    else:
+                                        # 旧格式：mode:size:opacity:points（没有颜色）
+                                        try:
+                                            stroke_size = int(float(parts[1]))
+                                            stroke_opacity = float(parts[2])
+                                            # 合并剩余部分作为points（处理points中可能包含冒号的情况）
+                                            points_str = ':'.join(parts[3:])
+                                        except (ValueError, IndexError):
+                                            # 解析失败，使用默认值
+                                            points_str = ':'.join(parts[1:])
                                 else:
                                     # 旧格式1：mode:points
                                     points_str = ':'.join(parts[1:])
