@@ -7,6 +7,7 @@
 1. [人脸检测模型 (YCFaceAnalysisModels)](#人脸检测模型-ycfaceanalysismodels)
 2. [人体分割模型 (HumanPartsUltra)](#人体分割模型-humanpartsultra)
 3. [BBox画布 (Canvas BBoX)](#BBox画布-CanvasBBoX)
+4. [在加载的图像上直接绘制遮罩](## Load Image Brush Mask)
 
 
 ## 人脸检测模型 (YCFaceAnalysisModels)
