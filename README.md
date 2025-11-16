@@ -49,6 +49,11 @@ pip install onnxruntime scipy
 
 我创建这个适合BBox的绘制的节点，基础的代码来自 https://github.com/Smirnov75/ComfyUI-mxToolkit
 
+## Load Image Brush Mask
+<img width="847" height="731" alt="image" src="https://github.com/user-attachments/assets/0a98b690-4dad-4202-8297-3118e395aeff" />
+
+在的加载图像上，直接绘制蒙版遮罩，不用打开comfyui mask编辑器
+
 
 ## 常见问题
 
