@@ -7,7 +7,7 @@
 1. [人脸检测模型 (YCFaceAnalysisModels)](#人脸检测模型-ycfaceanalysismodels)
 2. [人体分割模型 (HumanPartsUltra)](#人体分割模型-humanpartsultra)
 3. [BBox画布 (Canvas BBoX)](#BBox画布-CanvasBBoX)
-4. [在加载的图像上直接绘制遮罩](## Load Image Brush Mask)
+4. [在加载的图像上直接绘制遮罩](#Load_Image_Brush_Mask)
 
 
 ## 人脸检测模型 (YCFaceAnalysisModels)
@@ -50,7 +50,7 @@ pip install onnxruntime scipy
 
 我创建这个适合BBox的绘制的节点，基础的代码来自 https://github.com/Smirnov75/ComfyUI-mxToolkit
 
-## Load Image Brush Mask
+## Load_Image_Brush_Mask
 <img width="847" height="731" alt="image" src="https://github.com/user-attachments/assets/0a98b690-4dad-4202-8297-3118e395aeff" />
 
 在的加载图像上，直接绘制蒙版遮罩，不用打开comfyui mask编辑器
