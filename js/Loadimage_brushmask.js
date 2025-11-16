@@ -8,12 +8,14 @@ class ycimagebrushmask
         this.node = node;
         // 初始化属性
         this.node.properties = { 
-            brushPaths: [], // 存储画笔路径，每个路径是一个对象 {points: [], mode: 'brush'/'erase', size: 20, opacity: 1.0}
+            brushPaths: [], // 存储画笔路径，每个路径是一个对象 {points: [], mode: 'brush'/'erase', size: 80, opacity: 0.5, color: '255,255,255'}
             isDrawing: false, // 是否正在绘制
             currentPath: [], // 当前绘制的路径
-            brushSize: 20, // 当前画笔大小（用于新绘制）
-            brushOpacity: 1.0, // 当前画笔透明度（用于新绘制）(0.0 - 1.0)
+            brushSize: 80, // 当前画笔大小（用于新绘制），默认80
+            brushOpacity: 0.5, // 当前画笔透明度（用于新绘制）(0.0 - 1.0)，默认50%
             brushMode: 'brush', // 当前模式：'brush' 或 'erase'
+            brushColor: '255,255,255', // 画笔颜色（RGB格式，默认白色）
+            eraserColor: '255,50,50', // 橡皮擦颜色（RGB格式，默认红色）
             backgroundImage: null, // 背景图
             imageWidth: 512, // 图像宽度
             imageHeight: 512, // 图像高度
@@ -24,7 +26,7 @@ class ycimagebrushmask
         const fontsize = LiteGraph.NODE_SUBTEXT_SIZE;
         const shiftLeft = 10;
         const shiftRight = 80;
-        const panelHeight = 70; // 顶部面板高度（两行：按钮行+滑动条行）
+        const panelHeight = 58; // 顶部面板高度（两行：按钮行+滑动条行），从50增加到58
 
         // 隐藏默认小部件
         // widget查找：brush_data, brush_size, image_base64
@@ -93,22 +95,27 @@ class ycimagebrushmask
             if (!this.widgets[1] || !this.widgets[1].value) {
                 // 如果widget不存在，会在onConfigure中处理
             } else {
-                this.properties.brushSize = this.widgets[1].value || 20;
+                this.properties.brushSize = this.widgets[1].value || 80;
             }
 
             // 定义顶部面板按钮和滑动条
-            const buttonY = 5; // 面板内按钮Y位置（第一行）
-            const buttonHeight = 20;
+            const buttonY = 8; // 面板内按钮Y位置（第一行），从5往下移到8
+            const buttonHeight = 21; // 从20增加到21
             const sliderHeight = 12; // 滑动条高度
-            const sliderY = buttonY + buttonHeight + 8; // 滑动条Y位置（第二行）
+            const sliderY = buttonY + buttonHeight + 5; // 滑动条Y位置（第二行），间距从8减少到5
             let buttonX = 10;
+            
+            // 计算滑动条总宽度，用于对齐按钮
+            const sliderTotalWidth = 120 + 10 + 120; // Size滑动条宽度 + 间距 + Opacity滑动条宽度 = 250
+            const colorButtonWidth = 39; // 颜色按钮宽度从38增加到39
+            const colorButtonHeight = buttonHeight / 2 - 1; // 每个颜色按钮高度（上下排列，中间有1px间隔）
             
             this.properties.buttons = [
                 {
                     text: "Load Image",
                     x: buttonX,
                     y: buttonY,
-                    width: 70,
+                    width: 66, // 从65增加到66
                     height: buttonHeight,
                     action: () => {
                         this.loadImageFromFile();
@@ -116,9 +123,9 @@ class ycimagebrushmask
                 },
                 {
                     text: "Clear",
-                    x: buttonX += 75,
+                    x: buttonX += 71, // 66 + 5间距
                     y: buttonY,
-                    width: 50,
+                    width: 39, // 从38增加到39
                     height: buttonHeight,
                     action: () => {
                         this.properties.brushPaths = [];
@@ -128,9 +135,9 @@ class ycimagebrushmask
                 },
                 {
                     text: "Undo",
-                    x: buttonX += 55,
+                    x: buttonX += 44, // 39 + 5间距
                     y: buttonY,
-                    width: 50,
+                    width: 39, // 从38增加到39
                     height: buttonHeight,
                     action: () => {
                         if (this.properties.brushPaths.length > 0) {
@@ -141,9 +148,9 @@ class ycimagebrushmask
                 },
                 {
                     text: "Eraser",
-                    x: buttonX += 55,
+                    x: buttonX += 44, // 39 + 5间距
                     y: buttonY,
-                    width: 60,
+                    width: 39, // 从38增加到39
                     height: buttonHeight,
                     isToggle: true, // 标记为切换按钮
                     action: () => {
@@ -160,27 +167,53 @@ class ycimagebrushmask
                     label: "Size",
                     x: 10, // 从左侧开始
                     y: sliderY,
-                    width: 150,
+                    width: 120,
                     height: sliderHeight,
                     min: 1,
                     max: 200,
-                    value: this.properties.brushSize,
+                    value: this.properties.brushSize || 80, // 默认80
                     type: "size",
                     dragging: false
                 },
                 {
                     label: "Opacity",
-                    x: 170, // Size滑动条右侧
+                    x: 140, // Size滑动条右侧（120 + 10间距）
                     y: sliderY,
-                    width: 150,
+                    width: 120,
                     height: sliderHeight,
                     min: 0.1,
                     max: 1.0,
-                    value: this.properties.brushOpacity,
+                    value: this.properties.brushOpacity || 0.5, // 默认50%
                     type: "opacity",
                     dragging: false
                 }
             ];
+            
+            // 定义组合颜色选择按钮（第一行，与滑动条对齐）
+            // 组合按钮包含两个上下排列的颜色按钮
+            // 计算Eraser按钮后的位置：10 + 66 + 5 + 39 + 5 + 39 + 5 + 39 + 5 = 213
+            this.properties.colorButtonGroup = {
+                x: buttonX + 39 + 5, // Eraser按钮右侧，间距5px
+                y: buttonY,
+                width: colorButtonWidth, // 39px
+                height: buttonHeight,
+                buttons: [
+                    {
+                        label: "Brush",
+                        y: 0, // 相对于组合按钮的Y位置
+                        height: colorButtonHeight,
+                        type: "brush",
+                        color: this.properties.brushColor || '255,255,255'
+                    },
+                    {
+                        label: "Eraser",
+                        y: colorButtonHeight + 1, // 相对于组合按钮的Y位置（中间1px间隔）
+                        height: colorButtonHeight,
+                        type: "eraser",
+                        color: this.properties.eraserColor || '255,50,50'
+                    }
+                ]
+            };
         };
 
         // 节点初始化
@@ -204,14 +237,22 @@ class ycimagebrushmask
             // 获取画笔大小（从brush_size widget）
             const brushSizeWidget = this.widgets.find(w => w.name === "brush_size");
             if (brushSizeWidget && brushSizeWidget.value !== undefined) {
-                this.properties.brushSize = brushSizeWidget.value || 20;
+                this.properties.brushSize = brushSizeWidget.value || 80;
             } else {
-                this.properties.brushSize = 20;
+                this.properties.brushSize = 80;
             }
             
             // 确保透明度已初始化
             if (this.properties.brushOpacity === undefined) {
-                this.properties.brushOpacity = 1.0;
+                this.properties.brushOpacity = 0.5;
+            }
+            
+            // 确保颜色已初始化
+            if (this.properties.brushColor === undefined) {
+                this.properties.brushColor = '255,255,255';
+            }
+            if (this.properties.eraserColor === undefined) {
+                this.properties.eraserColor = '255,50,50';
             }
             
             // 初始化滑动条值
@@ -221,6 +262,17 @@ class ycimagebrushmask
                         slider.value = this.properties.brushSize;
                     } else if (slider.type === "opacity") {
                         slider.value = this.properties.brushOpacity;
+                    }
+                }
+            }
+            
+            // 初始化颜色按钮值
+            if (this.properties.colorButtonGroup && this.properties.colorButtonGroup.buttons) {
+                for (let colorBtn of this.properties.colorButtonGroup.buttons) {
+                    if (colorBtn.type === "brush") {
+                        colorBtn.color = this.properties.brushColor;
+                    } else if (colorBtn.type === "eraser") {
+                        colorBtn.color = this.properties.eraserColor;
                     }
                 }
             }
@@ -251,9 +303,11 @@ class ycimagebrushmask
                                 let pointsStr = stroke;
                                 
                                 // 解析格式：支持多种格式
-                                // 新格式：mode:size:opacity:points
+                                // 新格式（带颜色）：mode:size:opacity:r,g,b:points
+                                // 新格式（无颜色）：mode:size:opacity:points
                                 // 旧格式1：mode:points
                                 // 旧格式2：points（无模式）
+                                let parsedColor = null; // 解析出的颜色
                                 if (stroke.includes(':')) {
                                     const parts = stroke.split(':');
                                     if (parts.length >= 2) {
@@ -261,12 +315,42 @@ class ycimagebrushmask
                                         if (parts[0] === 'brush' || parts[0] === 'erase') {
                                             mode = parts[0];
                                             
-                                            // 检查是否有size和opacity（新格式）
+                                            // 检查格式：支持 mode:size:opacity:color:points 或 mode:size:opacity:points
                                             if (parts.length >= 4) {
-                                                // 新格式：mode:size:opacity:points
-                                                size = parseFloat(parts[1]) || 20;
-                                                opacity = parseFloat(parts[2]) || 1.0;
-                                                pointsStr = parts.slice(3).join(':'); // 处理points中可能包含冒号的情况
+                                                // 尝试解析新格式（带颜色）：mode:size:opacity:r,g,b:points
+                                                const part3 = parts[3];
+                                                if (part3 && part3.includes(',') && part3.split(',').length === 3) {
+                                                    // 可能是颜色格式 r,g,b
+                                                    try {
+                                                        const colorParts = part3.split(',');
+                                                        const r = parseInt(colorParts[0]);
+                                                        const g = parseInt(colorParts[1]);
+                                                        const b = parseInt(colorParts[2]);
+                                                        // 验证是否是有效的RGB值
+                                                        if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+                                                            // 这是颜色，格式为 mode:size:opacity:r,g,b:points
+                                                            size = parseFloat(parts[1]) || 20;
+                                                            opacity = parseFloat(parts[2]) || 1.0;
+                                                            parsedColor = `${r},${g},${b}`;
+                                                            pointsStr = parts.slice(4).join(':');
+                                                        } else {
+                                                            // 不是颜色，可能是旧格式 mode:size:opacity:points
+                                                            size = parseFloat(parts[1]) || 20;
+                                                            opacity = parseFloat(parts[2]) || 1.0;
+                                                            pointsStr = parts.slice(3).join(':');
+                                                        }
+                                                    } catch (e) {
+                                                        // 解析失败，使用旧格式
+                                                        size = parseFloat(parts[1]) || 20;
+                                                        opacity = parseFloat(parts[2]) || 1.0;
+                                                        pointsStr = parts.slice(3).join(':');
+                                                    }
+                                                } else {
+                                                    // 旧格式：mode:size:opacity:points（没有颜色）
+                                                    size = parseFloat(parts[1]) || 20;
+                                                    opacity = parseFloat(parts[2]) || 1.0;
+                                                    pointsStr = parts.slice(3).join(':');
+                                                }
                                             } else {
                                                 // 旧格式1：mode:points
                                                 pointsStr = parts.slice(1).join(':');
@@ -292,12 +376,13 @@ class ycimagebrushmask
                                     }
                                 }
                                 if (path.length > 0) {
-                                    // 保存路径时包含模式、size和opacity信息
+                                    // 保存路径时包含模式、size和opacity信息（不包含颜色，颜色是全局的）
                                     this.properties.brushPaths.push({
                                         points: path,
                                         mode: mode,
                                         size: size,
                                         opacity: opacity
+                                        // 不保存颜色，使用全局颜色
                                     });
                                 }
                             }
@@ -429,7 +514,7 @@ class ycimagebrushmask
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
 
-            // 第一步：绘制所有画笔路径（白色）
+            // 第一步：绘制所有画笔路径（使用全局画笔颜色）
             for (const pathObj of this.properties.brushPaths) {
                 // 兼容旧格式（直接是数组）和新格式（对象）
                 const path = pathObj.points || pathObj;
@@ -441,8 +526,12 @@ class ycimagebrushmask
                 // 只绘制画笔模式，跳过橡皮擦
                 if (mode === 'erase' || path.length < 2) continue;
 
+                // 使用全局画笔颜色（不保存到路径中）
+                const pathColor = this.properties.brushColor || '255,255,255';
+                const rgb = pathColor.split(',').map(c => parseInt(c.trim()));
+
                 ctx.lineWidth = pathSize * scale;
-                ctx.strokeStyle = `rgba(255,255,255,${pathOpacity})`;
+                ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${pathOpacity})`;
                 ctx.beginPath();
                 for (let i = 0; i < path.length; i++) {
                     const x = offsetX + path[i].x * scale;
@@ -457,7 +546,7 @@ class ycimagebrushmask
                 ctx.stroke();
             }
 
-            // 第二步：绘制橡皮擦路径（用醒目的红色显示预览）
+            // 第二步：绘制橡皮擦路径（使用全局橡皮擦颜色显示预览）
             ctx.globalCompositeOperation = 'source-over'; // 确保使用正常混合模式
             for (const pathObj of this.properties.brushPaths) {
                 const path = pathObj.points || pathObj;
@@ -469,9 +558,13 @@ class ycimagebrushmask
                 // 只绘制橡皮擦模式
                 if (mode !== 'erase' || path.length < 2) continue;
 
+                // 使用全局橡皮擦颜色（不保存到路径中）
+                const pathColor = this.properties.eraserColor || '255,50,50';
+                const rgb = pathColor.split(',').map(c => parseInt(c.trim()));
+
                 ctx.lineWidth = pathSize * scale;
-                // 用醒目的红色显示橡皮擦路径（完全使用opacity滑动条的值）
-                ctx.strokeStyle = `rgba(255,50,50,${pathOpacity})`;
+                // 使用全局橡皮擦颜色显示橡皮擦路径
+                ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${pathOpacity})`;
                 ctx.beginPath();
                 for (let i = 0; i < path.length; i++) {
                     const x = offsetX + path[i].x * scale;
@@ -486,18 +579,21 @@ class ycimagebrushmask
                 ctx.stroke();
             }
 
-            // 第三步：绘制当前正在绘制的路径（使用当前的size和opacity）
+            // 第三步：绘制当前正在绘制的路径（使用当前的size、opacity和颜色）
             if (this.properties.currentPath.length > 1) {
                 ctx.globalCompositeOperation = 'source-over'; // 确保使用正常混合模式
                 ctx.lineWidth = this.properties.brushSize * scale;
                 
-                if (this.properties.brushMode === 'erase') {
-                    // 橡皮擦模式：用醒目的红色显示预览（完全使用opacity滑动条的值）
-                    ctx.strokeStyle = `rgba(255,50,50,${this.properties.brushOpacity})`;
-                } else {
-                    // 画笔模式：正常绘制白色
-                    ctx.strokeStyle = `rgba(255,255,255,${this.properties.brushOpacity})`;
+                // 根据模式获取当前颜色
+                let currentColor = this.properties.brushMode === 'erase' 
+                    ? this.properties.eraserColor 
+                    : this.properties.brushColor;
+                if (!currentColor) {
+                    currentColor = this.properties.brushMode === 'erase' ? '255,50,50' : '255,255,255';
                 }
+                const rgb = currentColor.split(',').map(c => parseInt(c.trim()));
+                
+                ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${this.properties.brushOpacity})`;
                 
                 ctx.beginPath();
                 for (let i = 0; i < this.properties.currentPath.length; i++) {
@@ -541,7 +637,7 @@ class ycimagebrushmask
 
                 // 按钮文本
                 ctx.fillStyle = "rgba(220,220,220,0.9)";
-                ctx.font = "11px Arial";
+                ctx.font = "11px Arial"; // 字号从10px增加到11px
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(button.text, button.x + button.width/2, button.y + button.height/2);
@@ -591,7 +687,7 @@ class ycimagebrushmask
                 
                 // 绘制标签和值
                 ctx.fillStyle = "rgba(200,200,200,0.9)";
-                ctx.font = "10px Arial";
+                ctx.font = "11px Arial"; // 字号从10px增加到11px
                 ctx.textAlign = "left";
                 ctx.textBaseline = "top";
                 let valueText = "";
@@ -602,8 +698,54 @@ class ycimagebrushmask
                 }
                 ctx.fillText(valueText, sliderX, sliderY + sliderHeight + 2);
             }
+            
+            // 绘制组合颜色选择按钮（上下排列）
+            if (this.properties.colorButtonGroup) {
+                const groupX = this.properties.colorButtonGroup.x;
+                const groupY = this.properties.colorButtonGroup.y;
+                const groupWidth = this.properties.colorButtonGroup.width;
+                
+                // 绘制组合按钮的外边框
+                ctx.strokeStyle = "rgba(150,150,150,0.8)";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(groupX, groupY, groupWidth, this.properties.colorButtonGroup.height);
+                
+                // 绘制两个颜色按钮（上下排列）
+                for (let colorBtn of this.properties.colorButtonGroup.buttons) {
+                    const btnX = groupX;
+                    const btnY = groupY + colorBtn.y;
+                    const btnWidth = groupWidth;
+                    const btnHeight = colorBtn.height;
+                    
+                    // 更新按钮颜色
+                    if (colorBtn.type === "brush") {
+                        colorBtn.color = this.properties.brushColor || '255,255,255';
+                    } else if (colorBtn.type === "eraser") {
+                        colorBtn.color = this.properties.eraserColor || '255,50,50';
+                    }
+                    
+                    // 解析RGB颜色
+                    const rgb = colorBtn.color.split(',').map(c => parseInt(c.trim()));
+                    
+                    // 绘制按钮背景（显示颜色）
+                    ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`;
+                    ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
+                    
+                    // 绘制按钮边框（内部边框）
+                    ctx.strokeStyle = "rgba(150,150,150,0.6)";
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
+                    
+                    // 绘制标签（使用深灰色字体以区别于其他按钮，上对齐）
+                    ctx.fillStyle = "rgba(80,80,80,0.9)"; // 改为深灰色
+                    ctx.font = "10px Arial"; // 字号从9px增加到10px
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "top"; // 改为上对齐
+                    ctx.fillText(colorBtn.label, btnX + btnWidth/2, btnY + 1); // 距离顶部1px
+                }
+            }
 
-            // 更新画笔数据字符串到widget（包含模式、size和opacity信息）
+            // 更新画笔数据字符串到widget（不包含颜色信息，颜色是全局的）
             // 格式：mode:size:opacity:x1,y1;x2,y2;...|mode:size:opacity:x1,y1;x2,y2;...
             const brushDataStrings = this.properties.brushPaths.map(pathObj => {
                 // 兼容旧格式
@@ -612,7 +754,7 @@ class ycimagebrushmask
                 const size = pathObj.size !== undefined ? pathObj.size : this.properties.brushSize;
                 const opacity = pathObj.opacity !== undefined ? pathObj.opacity : this.properties.brushOpacity;
                 const pointsStr = path.map(p => `${p.x},${p.y}`).join(';');
-                // 格式：mode:size:opacity:points
+                // 格式：mode:size:opacity:points（不包含颜色）
                 return `${mode}:${size}:${opacity}:${pointsStr}`;
             });
             const brushDataWidget = this.widgets.find(w => w.name === "brush_data");
@@ -651,6 +793,29 @@ class ycimagebrushmask
                         this.capture = true;
                         this.captureInput(true);
                         return true;
+                    }
+                }
+                
+                // 检查组合颜色选择按钮
+                if (this.properties.colorButtonGroup) {
+                    const groupX = this.properties.colorButtonGroup.x;
+                    const groupY = this.properties.colorButtonGroup.y;
+                    const groupWidth = this.properties.colorButtonGroup.width;
+                    const groupHeight = this.properties.colorButtonGroup.height;
+                    
+                    // 检查是否点击在组合按钮区域内
+                    if (mouseX >= groupX && mouseX <= groupX + groupWidth &&
+                        mouseY >= groupY && mouseY <= groupY + groupHeight) {
+                        // 检查点击的是哪个颜色按钮（上或下）
+                        for (let colorBtn of this.properties.colorButtonGroup.buttons) {
+                            const btnY = groupY + colorBtn.y;
+                            const btnHeight = colorBtn.height;
+                            
+                            if (mouseY >= btnY && mouseY <= btnY + btnHeight) {
+                                this.openColorPicker(colorBtn.type);
+                                return true;
+                            }
+                        }
                     }
                 }
                 
@@ -827,23 +992,24 @@ class ycimagebrushmask
             }
             
             if (this.properties.isDrawing && this.properties.currentPath.length > 0) {
-                // 保存当前路径（包含模式、size和opacity信息）
+                // 保存当前路径（不包含颜色信息，颜色是全局的）
                 this.properties.brushPaths.push({
                     points: [...this.properties.currentPath],
                     mode: this.properties.brushMode,
                     size: this.properties.brushSize, // 保存绘制时的size
                     opacity: this.properties.brushOpacity // 保存绘制时的opacity
+                    // 不保存颜色，使用全局颜色
                 });
                 this.properties.currentPath = [];
                 
-                // 立即更新画笔数据到widget（包含size和opacity）
+                // 立即更新画笔数据到widget（不包含颜色）
                 const brushDataStrings = this.properties.brushPaths.map(pathObj => {
                     const path = pathObj.points || pathObj;
                     const mode = pathObj.mode || 'brush';
                     const size = pathObj.size !== undefined ? pathObj.size : this.properties.brushSize;
                     const opacity = pathObj.opacity !== undefined ? pathObj.opacity : this.properties.brushOpacity;
                     const pointsStr = path.map(p => `${p.x},${p.y}`).join(';');
-                    // 格式：mode:size:opacity:points
+                    // 格式：mode:size:opacity:points（不包含颜色）
                     return `${mode}:${size}:${opacity}:${pointsStr}`;
                 });
                 const brushDataWidget = this.widgets.find(w => w.name === "brush_data");
@@ -911,7 +1077,7 @@ class ycimagebrushmask
             
             // 如果画笔大小widget值变化，更新画笔大小
             if (widget && widget.name === "brush_size") {
-                this.properties.brushSize = widget.value || 20;
+                this.properties.brushSize = widget.value || 80;
                 this.updateThisNodeGraph?.();
             }
             
@@ -986,6 +1152,74 @@ class ycimagebrushmask
                 reader.readAsDataURL(file);
             };
             input.click();
+        };
+        
+        // 打开颜色选择器
+        this.node.openColorPicker = function(type) {
+            // 获取当前颜色
+            let currentColor = (type === 'eraser') ? this.properties.eraserColor : this.properties.brushColor;
+            if (!currentColor) {
+                currentColor = (type === 'eraser') ? '255,50,50' : '255,255,255';
+            }
+            
+            // 将RGB格式转换为十六进制格式（用于color input）
+            const rgb = currentColor.split(',').map(c => parseInt(c.trim()));
+            const hexColor = '#' + rgb.map(c => {
+                const hex = c.toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('');
+            
+            // 创建隐藏的color input
+            const colorInput = document.createElement('input');
+            colorInput.type = 'color';
+            colorInput.value = hexColor;
+            colorInput.style.position = 'fixed';
+            colorInput.style.left = '-9999px';
+            document.body.appendChild(colorInput);
+            
+            // 监听颜色变化
+            colorInput.onchange = (e) => {
+                const hex = e.target.value;
+                // 将十六进制转换为RGB格式
+                const r = parseInt(hex.substr(1, 2), 16);
+                const g = parseInt(hex.substr(3, 2), 16);
+                const b = parseInt(hex.substr(5, 2), 16);
+                const rgbColor = `${r},${g},${b}`;
+                
+                // 更新颜色
+                if (type === 'eraser') {
+                    this.properties.eraserColor = rgbColor;
+                } else {
+                    this.properties.brushColor = rgbColor;
+                }
+                
+                // 更新颜色按钮
+                if (this.properties.colorButtonGroup && this.properties.colorButtonGroup.buttons) {
+                    for (let colorBtn of this.properties.colorButtonGroup.buttons) {
+                        if (colorBtn.type === type) {
+                            colorBtn.color = rgbColor;
+                        }
+                    }
+                }
+                
+                // 触发重绘
+                this.updateThisNodeGraph?.();
+                
+                // 清理
+                document.body.removeChild(colorInput);
+            };
+            
+            // 如果用户取消选择，也要清理
+            colorInput.onblur = () => {
+                setTimeout(() => {
+                    if (document.body.contains(colorInput)) {
+                        document.body.removeChild(colorInput);
+                    }
+                }, 100);
+            };
+            
+            // 触发颜色选择器
+            colorInput.click();
         };
         
         // 从base64加载背景图
