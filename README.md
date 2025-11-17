@@ -6,9 +6,6 @@
 
 1. [人脸检测模型 (YCFaceAnalysisModels)](#人脸检测模型-ycfaceanalysismodels)
 2. [人体分割模型 (HumanPartsUltra)](#人体分割模型-humanpartsultra)
-3. [BBox画布 (Canvas BBoX)](#BBox画布-CanvasBBoX)
-4. [在加载的图像上直接绘制遮罩](#Load_Image_Brush_Mask)
-
 
 ## 人脸检测模型 (YCFaceAnalysisModels)
 
@@ -45,16 +42,6 @@ HumanPartsUltra节点使用DeepLabV3+模型进行人体部位分割。
 ```bash
 pip install onnxruntime scipy
 ```
-## BBox画布 (CanvasBBoX)
-<img width="655" height="660" alt="image" src="https://github.com/user-attachments/assets/57c4c591-e691-421e-930c-45cc6f9efac9" />
-
-我创建这个适合BBox的绘制的节点，基础的代码来自 https://github.com/Smirnov75/ComfyUI-mxToolkit
-
-## Load_Image_Brush_Mask
-<img width="847" height="731" alt="image" src="https://github.com/user-attachments/assets/0a98b690-4dad-4202-8297-3118e395aeff" />
-
-在的加载图像上，直接绘制蒙版遮罩，不用打开comfyui mask编辑器
-
 
 ## 常见问题
 
