@@ -4,3 +4,6 @@ pillow
 onnxruntime
 scipy
 insightface>=0.7.3
+MediaPipe
+opencv-python
+
